@@ -54,3 +54,6 @@ dkms.conf
 # Visual Studio and VS Code
 .vs/
 .vscode/
+
+# Miscellaneous
+extra_files/
