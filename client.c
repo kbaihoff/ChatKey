@@ -108,6 +108,32 @@ int open_client_socket()
 
 #pragma region Messaging
 /**
+ * @name listen_for_messages
+ * @brief Listen for messages from the server
+ * @param client_socket The socket this client is connected to
+ */
+void listen_for_messages(int client_socket)
+{
+  int bytes_read;
+	char buffer[MAX_BUFFER];
+
+	// Listen for/send messages from/to this client until they decide to leave
+	while (1)
+	{
+		memset(buffer, 0, sizeof(buffer));
+		bytes_read = recv(client_socket, buffer, sizeof(buffer), 0);
+		if (bytes_read == SOCKET_ERROR)
+		{
+			fprintf(stderr, "recv failed with WSA error %d", WSAGetLastError());
+		}
+		else if (bytes_read > 0)
+		{
+			printf("From server: %s", buffer);
+		}
+	}
+}
+
+/**
  * @name handle_communication_to_server
  * @brief Handle sending messages to the server
  * @param client_socket The socket this client is connected to
