@@ -10,5 +10,6 @@
 HANDLE create_communication_thread(int client_socket);
 void send_message(int client_socket, char *buffer);
 int stop_communication(char *buffer);
+void cleanup_communication_thread(HANDLE thread_handle);
 
 #endif

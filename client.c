@@ -57,7 +57,7 @@ void run_client()
 
   // if the thread completes its function, that means the client wants to exit
   WaitForSingleObject(thread_handle, INFINITE);
-  cleanup_listener_thread(thread_handle);
+  cleanup_communication_thread(thread_handle);
   printf("Client %d is disconnecting...", client_socket);
 
   // socket clean up
@@ -240,11 +240,11 @@ void listen_for_messages(int client_socket)
 
 #pragma region Cleanup
 /**
- * @name cleanup_listener_thread
+ * @name cleanup_communication_thread
  * @brief Clean up thread resources and close handles
  * @param thread_handle The thread to close
  */
-void cleanup_listener_thread(HANDLE thread_handle)
+void cleanup_communication_thread(HANDLE thread_handle)
 {
   CloseHandle(thread_handle);
 }
