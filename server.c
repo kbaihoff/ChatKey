@@ -137,6 +137,36 @@ int open_server_socket()
 
 #pragma region Messaging
 /**
+ * @name broadcast_message
+ * @brief Send a message to all connected clients
+ * @param cks The ChatKey server that should broadcast the messages
+ * @param msg The message to broadcast
+ */
+void broadcast_message(struct chatkey_server cks, char *msg)
+{
+	int i;
+	for (i = 0; i < cks.num_clients; i++)
+	{
+		send_message(cks.client_sockets[i], msg);
+	}
+}
+
+/**
+ * @name send_message
+ * @brief Send a message over the server
+ * @param client_socket The socket this client is connected to
+ * @param buffer The messaget to send
+ */
+void send_message(int client_socket, char *buffer)
+{
+  if (send(client_socket, buffer, sizeof(buffer), 0) == SOCKET_ERROR)
+  {
+    fprintf(stderr, "send failed with WSA error %d", WSAGetLastError());
+    return;
+  }
+}
+
+/**
  * @name handle_communication_to_client
  * @brief Handle messaging with one client
  * @param client_fd The client socket file descriptor

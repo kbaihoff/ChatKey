@@ -13,6 +13,7 @@ struct chatkey_server
 
 void run_server();
 int open_server_socket();
+void broadcast_message(struct chatkey_server cks, char *msg);
 void handle_communication_to_client();
 
 #endif
