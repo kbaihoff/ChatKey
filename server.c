@@ -9,6 +9,7 @@
 
 #pragma comment(lib, "Ws2_32.lib")
 
+#include <io.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,7 +38,7 @@ int main(int argc, char **argv)
 void run_server()
 {
 	WSADATA wsa_data;
-	int connect_fd;
+	int server_socket, connect_fd, pid;
 	struct sockaddr_in client_ip_addr;
 	int addrlen = sizeof(client_ip_addr);
 
@@ -45,24 +46,36 @@ void run_server()
 	WSAStartup(MAKEWORD(2, 2), &wsa_data);
 
 	// open a server socket for clients to connect to
-	int master_socket = open_server_socket(CHATKEY_PORT);
-	printf("Server listening for connections...");
+	server_socket = open_server_socket(CHATKEY_PORT);
+	printf("Server listening for connections...\n");
 
 	// accept incoming connections to this server
 	while (1)
 	{
-		if ((connect_fd = accept(master_socket, (struct sockaddr *)&client_ip_addr, &addrlen)) < 0)
+		if ((connect_fd = accept(server_socket, (struct sockaddr *)&client_ip_addr, &addrlen)) < 0)
 		{
 			fprintf(stderr, "accept failed with WSA error %d", WSAGetLastError());
 			exit(EXIT_FAILURE);
 		}
 
-		// TODO: process requests
-		printf("Server accepted client: %d", connect_fd);
+		// fork child process to handle messaging to/from this client
+		printf("Server accepted client: %d\n", connect_fd);
+		//pid = fork();
+		//if (pid == CLIENT_PROCESS)
+		//{
+		//closesocket(server_socket);
+		handle_communication_to_client(connect_fd);
+		printf("Client %d is disconnecting...\n", connect_fd);
+		//exit(0);
+		//}
+		//else
+		//{
+		// closesocket(connect_fd);
+		//}
 	}
 
 	// socket clean up
-	if (closesocket(master_socket) == SOCKET_ERROR)
+	if (closesocket(server_socket) == SOCKET_ERROR)
 	{
 		fprintf(stderr, "closesocket failed with WSA error %d", WSAGetLastError());
 		WSACleanup();
@@ -98,6 +111,7 @@ int open_server_socket()
 	}
 
 	// set the IP address and port number for this server
+	memset(&server_ip_addr, 0, sizeof(server_ip_addr));
 	server_ip_addr.sin_family = AF_INET;
 	server_ip_addr.sin_addr.S_un.S_addr = INADDR_ANY;
 	server_ip_addr.sin_port = htons(CHATKEY_PORT);
@@ -120,3 +134,62 @@ int open_server_socket()
 	return socket_fd;
 }
 #pragma endregion Initialization
+
+#pragma region Messaging
+/**
+ * @name handle_communication_to_client
+ * @brief Handle messaging with one client
+ * @param client_fd The client socket file descriptor
+ */
+void handle_communication_to_client(int client_fd)
+{
+	int bytes_read;
+	char buffer[MAX_BUFFER];
+
+	// Listen for/send messages from/to this client until they decide to leave
+	while (1)
+	{
+		memset(buffer, 0, sizeof(buffer));
+		bytes_read = recv(client_fd, buffer, sizeof(buffer), 0);
+		if (bytes_read == SOCKET_ERROR)
+		{
+			fprintf(stderr, "recv failed with WSA error %d", WSAGetLastError());
+		}
+		else if (bytes_read > 0)
+		{
+			printf("From client: %s", buffer);
+		}
+		if (stop_communication(buffer))
+		{
+			break;
+		}
+	}
+}
+
+/**
+ * @name stop_communication
+ * @brief Determine whether client wants to stop communication
+ * @param buffer The message from the client
+ * @returns 1 if the client wants to leave, otherwise 0
+ */
+int stop_communication(char *buffer)
+{
+	if (strncmp("exit", buffer, 4) == 0)
+	{
+		return 1;
+	}
+	if (strncmp("quit", buffer, 4) == 0)
+	{
+		return 1;
+	}
+	if (strncmp("stop", buffer, 4) == 0)
+	{
+		return 1;
+	}
+	if (strncmp("leave", buffer, 5) == 0)
+	{
+		return 1;
+	}
+	return 0;
+}
+#pragma endregion Messaging
