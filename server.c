@@ -7,13 +7,13 @@
  * DATE: February 06, 2021
  */
 
+#pragma comment(lib,"Ws2_32.lib")
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <WinSock2.h>
 #include "server.h"
-
-#pragma comment(lib, "ws2_32");
 
 /**
  * @name main
@@ -54,9 +54,13 @@ int main(int argc, char **argv)
  */
 void run_server(int port)
 {
+	WSADATA wsa_data;
 	int connect_fd;
 	struct sockaddr_in client_ip_addr;
 	int addrlen = sizeof(client_ip_addr);
+
+	// initialize Winsock (need this for socket functions to work)
+	WSAStartup(MAKEWORD(2, 2), &wsa_data);
 
 	// open a server socket for clients to connect to
 	int master_socket = open_server_socket(port);
@@ -67,15 +71,20 @@ void run_server(int port)
 	{
 		if ((connect_fd = accept(master_socket, (struct sockaddr *)&client_ip_addr, &addrlen)) < 0)
 		{
-			perror("accept failed");
+			fprintf(stderr, "accept failed [%d]", WSAGetLastError());
 			exit(EXIT_FAILURE);
 		}
 
 		// TODO: process requests
 	}
 
-	// make sure to close sockets to avoid using up all the FDs
-	closesocket(master_socket);
+	// socket clean up
+	if (closesocket(master_socket) == SOCKET_ERROR) {
+		fprintf(stderr, "closesocket failed [%d]", WSAGetLastError());
+		WSACleanup();
+		exit(EXIT_FAILURE);
+	}
+	WSACleanup();
 }
 
 /**
@@ -91,9 +100,9 @@ int open_server_socket(int port)
 	struct sockaddr_in server_ip_addr;
 
 	// socket creation for IPv4 protocol, TCP, IP
-	if ((socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+	if ((socket_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == INVALID_SOCKET)
 	{
-		perror("socket failed");
+		fprintf(stderr, "socket failed [%d]", WSAGetLastError());
 		exit(EXIT_FAILURE);
 	}
 
@@ -101,7 +110,7 @@ int open_server_socket(int port)
 	// else have to wait ~2 minutes before reusing the same port
 	if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, (char *)&opt_val, sizeof(opt_val)))
 	{
-		perror("setsockopt failed");
+		fprintf(stderr, "setsockopt failed [%d]", WSAGetLastError());
 		exit(EXIT_FAILURE);
 	}
 
@@ -113,14 +122,14 @@ int open_server_socket(int port)
 	// attach socket to the port
 	if (bind(socket_fd, (struct sockaddr *)&server_ip_addr, sizeof(server_ip_addr)))
 	{
-		perror("bind failed");
+		fprintf(stderr, "bind failed [%d]", WSAGetLastError());
 		exit(EXIT_FAILURE);
 	}
 
 	// Put server in the listening state and set queue length
 	if (listen(socket_fd, QUEUE_LENGTH) < 0)
 	{
-		perror("listen failed");
+		fprintf(stderr, "listen failed [%d]", WSAGetLastError());
 		exit(EXIT_FAILURE);
 	}
 
