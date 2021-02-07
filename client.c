@@ -9,6 +9,7 @@
 
 #pragma comment(lib, "Ws2_32.lib")
 
+#include <io.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,14 +38,28 @@ int main(int argc, char **argv)
 void run_client()
 {
   WSADATA wsa_data;
-  int client_socket;
+  int client_socket, pid;
 
   // initialize Winsock (need this for socket functions to work)
   WSAStartup(MAKEWORD(2, 2), &wsa_data);
 
   // open client socket and connect to server
   client_socket = open_client_socket();
-  printf("Client connected to ChatKey server.\n");
+  printf("Type a message to send to everyone on the ChatKey server.\n");
+
+  // fork child process to handle messaging to/from this server
+  //pid = fork();
+  //if (pid == SERVER_PROCESS)
+  //{
+    //closesocket(server_socket);
+    handle_communication_to_server(client_socket);
+    printf("Client %d is disconnecting...", client_socket);
+    //exit(0);
+  //}
+  //else
+  //{
+    // closesocket(connect_fd);
+  //}
 
   // socket clean up
   if (closesocket(client_socket) == SOCKET_ERROR)
@@ -74,6 +89,7 @@ int open_client_socket()
   }
 
   // set the port number for this server on localhost
+  memset(&server_ip_addr, 0, sizeof(server_ip_addr));
   server_ip_addr.sin_family = AF_INET;
   server_ip_addr.sin_addr.S_un.S_addr = inet_addr("127.0.0.1");
   server_ip_addr.sin_port = htons(CHATKEY_PORT);
@@ -89,3 +105,56 @@ int open_client_socket()
   return socket_fd;
 }
 #pragma endregion Initialization
+
+#pragma region Messaging
+/**
+ * @name handle_communication_to_server
+ * @brief Handle sending messages to the server
+ * @param client_socket The socket this client is connected to
+ */
+void handle_communication_to_server(int client_socket)
+{
+  int len;
+  char buffer[MAX_BUFFER];
+
+  while (1)
+  {
+    memset(buffer, 0, sizeof(buffer));
+    len = 0;
+    while ((buffer[len++] = getchar()) != '\n')
+      ;
+    write(client_socket, buffer, sizeof(buffer));
+    if (stop_communication(buffer))
+    {
+      break;
+    }
+  }
+}
+
+/**
+ * @name stop_communication
+ * @brief Determine whether client wants to stop communication
+ * @param buffer The message from the client
+ * @returns 1 if the client wants to leave, otherwise 0
+ */
+int stop_communication(char *buffer)
+{
+	if (strncmp("exit", buffer, 4) == 0)
+	{
+		return 1;
+	}
+	if (strncmp("quit", buffer, 4) == 0)
+	{
+		return 1;
+	}
+	if (strncmp("stop", buffer, 4) == 0)
+	{
+		return 1;
+	}
+	if (strncmp("leave", buffer, 5) == 0)
+	{
+		return 1;
+	}
+	return 0;
+}
+#pragma endregion Messaging
