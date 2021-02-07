@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <WinSock2.h>
+#include <Windows.h>
 #include "ChatKey.h"
 #include "client.h"
 
@@ -38,7 +39,8 @@ int main(int argc, char **argv)
 void run_client()
 {
   WSADATA wsa_data;
-  int client_socket, pid;
+  int client_socket;
+  HANDLE thread_handle;
 
   // initialize Winsock (need this for socket functions to work)
   WSAStartup(MAKEWORD(2, 2), &wsa_data);
@@ -47,19 +49,16 @@ void run_client()
   client_socket = open_client_socket();
   printf("Type a message to send to everyone on the ChatKey server.\n");
 
-  // fork child process to handle messaging to/from this server
-  //pid = fork();
-  //if (pid == SERVER_PROCESS)
-  //{
-  //closesocket(server_socket);
-  handle_communication_to_server(client_socket);
+  // create thread to handle sending messages
+  thread_handle = create_messaging_thread(client_socket);
+
+  // listen for server messages on this thread
+  listen_for_messages(client_socket);
+
+  // if the thread completes its function, that means the client wants to exit
+  WaitForSingleObject(thread_handle, INFINITE);
+  cleanup_listener_thread(thread_handle);
   printf("Client %d is disconnecting...", client_socket);
-  //exit(0);
-  //}
-  //else
-  //{
-  // closesocket(connect_fd);
-  //}
 
   // socket clean up
   if (closesocket(client_socket) == SOCKET_ERROR)
@@ -104,35 +103,48 @@ int open_client_socket()
   // success - return the successful file descriptor
   return socket_fd;
 }
+
+/**
+ * @name create_messaging_thread
+ * @brief Create a thread to listen for messages from the server
+ * @param client_socket The socket this client is connected to
+ * @returns The thread handle
+ */
+HANDLE create_messaging_thread(int client_socket)
+{
+  HANDLE thread_handle;
+  memset(&thread_handle, 0, sizeof(thread_handle));
+
+  // Default security attributes
+  // Default stack size
+  // Thread should run run_communication_thread
+  // Pass client_socket as parameter to run_communication_thread
+  // Default creation flags
+  // Don't save the thread identifier
+  thread_handle = CreateThread(NULL, 0, run_communication_thread, &client_socket, 0, NULL);
+  if (thread_handle == NULL)
+  {
+    fprintf(stderr, "CreateThread failed with WSA error %d", WSAGetLastError());
+  }
+
+  // success - return the successful thread handle
+  return thread_handle;
+}
+
+/**
+ * @name run_communication_thread
+ * @brief Wrapper function to handle_communication_to_server; threads should call this function
+ * @param lp_client_socket The the LP parameter of the socket this client is connected to
+ */
+DWORD WINAPI run_communication_thread(LPVOID lp_client_socket)
+{
+  int client_socket = *(int *)(lp_client_socket);
+  handle_communication_to_server(client_socket);
+  return EXIT_SUCCESS;
+}
 #pragma endregion Initialization
 
 #pragma region Messaging
-/**
- * @name listen_for_messages
- * @brief Listen for messages from the server
- * @param client_socket The socket this client is connected to
- */
-void listen_for_messages(int client_socket)
-{
-  int bytes_read;
-	char buffer[MAX_BUFFER];
-
-	// Listen for/send messages from/to this client until they decide to leave
-	while (1)
-	{
-		memset(buffer, 0, sizeof(buffer));
-		bytes_read = recv(client_socket, buffer, sizeof(buffer), 0);
-		if (bytes_read == SOCKET_ERROR)
-		{
-			fprintf(stderr, "recv failed with WSA error %d", WSAGetLastError());
-		}
-		else if (bytes_read > 0)
-		{
-			printf("From server: %s", buffer);
-		}
-	}
-}
-
 /**
  * @name handle_communication_to_server
  * @brief Handle sending messages to the server
@@ -174,28 +186,66 @@ void send_message(int client_socket, char *buffer)
 
 /**
  * @name stop_communication
- * @brief Determine whether client wants to stop communication
- * @param buffer The message from the client
+ * @brief Determine whether client (or server) wants to stop communication
+ * @param buffer The message from the client (or server)
  * @returns 1 if the client wants to leave, otherwise 0
  */
 int stop_communication(char *buffer)
 {
-  if (strncmp("exit", buffer, 4) == 0)
+  if (strncmp(buffer, EXIT_MSG, strlen(EXIT_MSG)) == 0)
   {
     return 1;
   }
-  if (strncmp("quit", buffer, 4) == 0)
+  if (strncmp(buffer, QUIT_MSG, strlen(QUIT_MSG)) == 0)
   {
     return 1;
   }
-  if (strncmp("stop", buffer, 4) == 0)
-  {
-    return 1;
-  }
-  if (strncmp("leave", buffer, 5) == 0)
+  if (strncmp(buffer, DISCONNECT_CLIENT_MSG, strlen(DISCONNECT_CLIENT_MSG)) == 0)
   {
     return 1;
   }
   return 0;
 }
+
+/**
+ * @name listen_for_messages
+ * @brief Listen for messages from the server
+ * @param client_socket The socket this client is connected to
+ */
+void listen_for_messages(int client_socket)
+{
+  int bytes_read;
+  char buffer[MAX_BUFFER];
+
+  // Listen for/send messages from/to this client until they decide to leave
+  while (1)
+  {
+    memset(buffer, 0, sizeof(buffer));
+    bytes_read = recv(client_socket, buffer, sizeof(buffer), 0);
+    if (bytes_read == SOCKET_ERROR)
+    {
+      fprintf(stderr, "recv failed with WSA error %d", WSAGetLastError());
+    }
+    else if (bytes_read > 0)
+    {
+      if (stop_communication(buffer))
+      {
+        break;
+      }
+      printf("From server: %s", buffer);
+    }
+  }
+}
 #pragma endregion Messaging
+
+#pragma region Cleanup
+/**
+ * @name cleanup_listener_thread
+ * @brief Clean up thread resources and close handles
+ * @param thread_handle The thread to close
+ */
+void cleanup_listener_thread(HANDLE thread_handle)
+{
+  CloseHandle(thread_handle);
+}
+#pragma endregion Cleanup
