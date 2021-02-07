@@ -7,8 +7,9 @@
 #define MAX_BUFFER 128
 #define QUIT_MSG "quit"
 
-HANDLE create_communication_thread(int client_socket);
-void send_message(int client_socket, char *buffer);
+HANDLE create_communication_thread(int socket_fd);
+DWORD WINAPI run_communication_thread(LPVOID lp_socket_fd);
+void send_message(int socket_fd, char *buffer);
 int stop_communication(char *buffer);
 void cleanup_communication_thread(HANDLE thread_handle);
 
