@@ -13,7 +13,22 @@
 #include <WinSock2.h>
 #include "server.h"
 
-int main(int argc, char** argv) {
+#pragma comment(lib, "ws2_32");
+
+/**
+ * @name main
+ * @brief Entry point for ChatKeyServer
+ * @param argc The number of arguments (including .\ChatKeyServer) that were entered on the command line
+ * @param argv The arguments that were entered on the command line
+ * @returns 0 on successful exit
+ */
+int main(int argc, char **argv)
+{
+	if (argc != 2)
+	{
+		fprintf(stderr, "%s", USAGE);
+		exit(EXIT_FAILURE);
+	}
 	int master_socket = open_server_socket(8080);
 	exit(EXIT_SUCCESS);
 }
@@ -25,21 +40,24 @@ int main(int argc, char** argv) {
  * @param port The port number to connect to
  * @returns The server socket file descriptor
  */
-int open_server_socket(int port) {
+int open_server_socket(int port)
+{
 	int socket_fd;
 	int opt_val = 1;
 	struct sockaddr_in server_ip_addr;
 
 	// socket creation for IPv4 protocol, TCP, IP
-	if ((socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-		perror("socket failed...");
+	if ((socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+	{
+		perror("socket failed");
 		exit(EXIT_FAILURE);
 	}
 
 	// set socket options for socketfd to reuse address and port
 	// else have to wait ~2 minutes before reusing the same port
-	if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, (char *)&opt_val, sizeof(opt_val))) {
-		perror("setsockopt failed...");
+	if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, (char *)&opt_val, sizeof(opt_val)))
+	{
+		perror("setsockopt failed");
 		exit(EXIT_FAILURE);
 	}
 
@@ -49,13 +67,15 @@ int open_server_socket(int port) {
 	server_ip_addr.sin_port = htons(port);
 
 	// attach socket to the port
-	if (bind(socket_fd, (struct sockaddr*)&server_ip_addr, sizeof(server_ip_addr))) {
-		perror("bind failed...");
+	if (bind(socket_fd, (struct sockaddr *)&server_ip_addr, sizeof(server_ip_addr)))
+	{
+		perror("bind failed");
 		exit(EXIT_FAILURE);
 	}
 
 	// Put server in the listening state and set queue length
-	if (listen(socket_fd, QUEUE_LENGTH) < 0) {
+	if (listen(socket_fd, QUEUE_LENGTH) < 0)
+	{
 		perror("listen failed");
 		exit(EXIT_FAILURE);
 	}
