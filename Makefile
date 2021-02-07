@@ -20,15 +20,15 @@ default: ck
 # General target format
 # target: list of prerequisites
 
-# To create the executable file ChatKey we need all of the object files.
+# To create the executable file ChatKeyServer we need all of the object files.
 # This is equivalent to the commented-out ck target below.
 # ck: $(OBJ)
-#	$(CC) $(CFLAGS) -o ChatKey $(OBJ)
+#	$(CC) $(CFLAGS) -o ChatKeyServer $(OBJ)
 
-# To create the executable file ChatKey we need the object files:
+# To create the executable file ChatKeyServer we need the object files:
 # server.o
 ck: server.o
-	$(CC) $(CFLAGS) -o ChatKey server.o
+	$(CC) $(CFLAGS) -o ChatKeyServer server.o
 
 # To create the object file %.o, we need the source files:
 # %.c (where % is a wildcard)
@@ -40,7 +40,7 @@ ck: server.o
 
 # To create the object file server.o, we need the source files:
 # server.c (header files must be included in tag list, but not in gcc command)
-server.o: server.c
+server.o: server.c server.h
 	$(CC) $(CFLAGS) -c server.c
 
 # To start over from scratch, type 'make clean'. This removes the executable file, as well as old
