@@ -1,6 +1,7 @@
 #ifndef CHATKEY_CLIENT
 #define CHATKEY_CLIENT
 
-int open_client_socket(int port);
+void run_client();
+int open_client_socket();
 
 #endif
