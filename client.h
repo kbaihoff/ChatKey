@@ -6,5 +6,6 @@
 void run_client();
 int open_client_socket();
 void handle_communication_to_server(int client_socket);
+void send_message(int client_socket, char *buffer);
 
 #endif

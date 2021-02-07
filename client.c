@@ -51,14 +51,14 @@ void run_client()
   //pid = fork();
   //if (pid == SERVER_PROCESS)
   //{
-    //closesocket(server_socket);
-    handle_communication_to_server(client_socket);
-    printf("Client %d is disconnecting...", client_socket);
-    //exit(0);
+  //closesocket(server_socket);
+  handle_communication_to_server(client_socket);
+  printf("Client %d is disconnecting...", client_socket);
+  //exit(0);
   //}
   //else
   //{
-    // closesocket(connect_fd);
+  // closesocket(connect_fd);
   //}
 
   // socket clean up
@@ -123,11 +123,26 @@ void handle_communication_to_server(int client_socket)
     len = 0;
     while ((buffer[len++] = getchar()) != '\n')
       ;
-    write(client_socket, buffer, sizeof(buffer));
+    send_message(client_socket, buffer);
     if (stop_communication(buffer))
     {
       break;
     }
+  }
+}
+
+/**
+ * @name send_message
+ * @brief Send a message over the server
+ * @param client_socket The socket this client is connected to
+ * @param buffer The messaget to send
+ */
+void send_message(int client_socket, char *buffer)
+{
+  if (send(client_socket, buffer, sizeof(buffer), 0) == SOCKET_ERROR)
+  {
+    fprintf(stderr, "send failed with WSA error %d", WSAGetLastError());
+    return;
   }
 }
 
@@ -139,22 +154,22 @@ void handle_communication_to_server(int client_socket)
  */
 int stop_communication(char *buffer)
 {
-	if (strncmp("exit", buffer, 4) == 0)
-	{
-		return 1;
-	}
-	if (strncmp("quit", buffer, 4) == 0)
-	{
-		return 1;
-	}
-	if (strncmp("stop", buffer, 4) == 0)
-	{
-		return 1;
-	}
-	if (strncmp("leave", buffer, 5) == 0)
-	{
-		return 1;
-	}
-	return 0;
+  if (strncmp("exit", buffer, 4) == 0)
+  {
+    return 1;
+  }
+  if (strncmp("quit", buffer, 4) == 0)
+  {
+    return 1;
+  }
+  if (strncmp("stop", buffer, 4) == 0)
+  {
+    return 1;
+  }
+  if (strncmp("leave", buffer, 5) == 0)
+  {
+    return 1;
+  }
+  return 0;
 }
 #pragma endregion Messaging
