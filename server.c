@@ -26,6 +26,11 @@
 struct chatkey_server CK_SERVER;
 
 /**
+ * Global to track the index of the client to add separate from the CK_SERVER.num_clients variable
+ */
+int current_add_index;
+
+/**
  * @name main
  * @brief Entry point for ChatKeyServer
  * @param argc The number of arguments (including .\ChatKeyServer) that were entered on the command line
@@ -157,9 +162,9 @@ void add_client(int client_socket)
 	void (*communication_handler)() = &handle_communication_to_client;
 	printf("Server accepted client: %d\n", client_socket);
 	broadcast_message("A new user has joined the group!\n");
-	CK_SERVER.client_sockets[CK_SERVER.num_clients] = client_socket;
-	CK_SERVER.client_threads[CK_SERVER.num_clients] = create_communication_thread(communication_handler);
-	CK_SERVER.num_clients++;
+	current_add_index = CK_SERVER.num_clients++;
+	CK_SERVER.client_sockets[current_add_index] = client_socket;
+	CK_SERVER.client_threads[current_add_index] = create_communication_thread(communication_handler);
 }
 
 /**
@@ -216,7 +221,7 @@ void handle_communication_to_client()
 {
 	int bytes_read;
 	char buffer[MAX_BUFFER];
-	int client_fd = CK_SERVER.client_sockets[CK_SERVER.num_clients];
+	int client_fd = CK_SERVER.client_sockets[current_add_index];
 
 	// Listen for/send messages from/to this client until they decide to leave
 	while (1)
@@ -230,11 +235,12 @@ void handle_communication_to_client()
 		}
 		else if (bytes_read > 0)
 		{
-			printf("From client: %s", buffer);
+			printf("From client %d: %s", client_fd, buffer);
 			send_message(client_fd, "Got your message!");
 		}
 		if (stop_communication(buffer))
 		{
+			printf("Client %d is disconnecting...\n", client_fd);
 			send_message(client_fd, DISCONNECT_CLIENT_MSG);
 			remove_client(client_fd);
 			break;
