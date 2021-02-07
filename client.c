@@ -50,7 +50,7 @@ void run_client()
   printf("Type a message to send to everyone on the ChatKey server.\n");
 
   // create thread to handle sending messages
-  thread_handle = create_messaging_thread(client_socket);
+  thread_handle = create_communication_thread(client_socket);
 
   // listen for server messages on this thread
   listen_for_messages(client_socket);
@@ -105,12 +105,12 @@ int open_client_socket()
 }
 
 /**
- * @name create_messaging_thread
+ * @name create_communication_thread
  * @brief Create a thread to listen for messages from the server
  * @param client_socket The socket this client is connected to
  * @returns The thread handle
  */
-HANDLE create_messaging_thread(int client_socket)
+HANDLE create_communication_thread(int client_socket)
 {
   HANDLE thread_handle;
   memset(&thread_handle, 0, sizeof(thread_handle));
