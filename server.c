@@ -188,9 +188,11 @@ void handle_communication_to_client(int client_fd)
 		else if (bytes_read > 0)
 		{
 			printf("From client: %s", buffer);
+			send_message(client_fd, "Got your message!");
 		}
 		if (stop_communication(buffer))
 		{
+			send_message(client_fd, DISCONNECT_CLIENT_MSG);
 			break;
 		}
 	}
@@ -204,22 +206,19 @@ void handle_communication_to_client(int client_fd)
  */
 int stop_communication(char *buffer)
 {
-	if (strncmp("exit", buffer, 4) == 0)
-	{
-		return 1;
-	}
-	if (strncmp("quit", buffer, 4) == 0)
-	{
-		return 1;
-	}
-	if (strncmp("stop", buffer, 4) == 0)
-	{
-		return 1;
-	}
-	if (strncmp("leave", buffer, 5) == 0)
-	{
-		return 1;
-	}
-	return 0;
+  if (strncmp(buffer, EXIT_MSG, strlen(EXIT_MSG)) == 0)
+  {
+    return 1;
+  }
+  if (strncmp(buffer, QUIT_MSG, strlen(QUIT_MSG)) == 0)
+  {
+    return 1;
+  }
+  if (strncmp(buffer, DISCONNECT_CLIENT_MSG, strlen(DISCONNECT_CLIENT_MSG)) == 0)
+  {
+    return 1;
+  }
+  return 0;
 }
+
 #pragma endregion Messaging
