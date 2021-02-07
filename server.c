@@ -24,16 +24,60 @@
  */
 int main(int argc, char **argv)
 {
-	if (argc != 2)
+	int port;
+
+	if (argc > 2)
 	{
 		fprintf(stderr, "%s", USAGE);
 		exit(EXIT_FAILURE);
 	}
-	int master_socket = open_server_socket(8080);
+
+	// get the port number
+	if (argc == 2)
+	{
+		port = atoi(argv[1]);
+	}
+	else
+	{
+		port = 8080;
+	}
+
+	run_server(port);
 	exit(EXIT_SUCCESS);
 }
 
 #pragma region Helpers
+/**
+ * @name run_server
+ * @brief Run the server for clients to connect to
+ * @param port The port number to connect to
+ */
+void run_server(int port)
+{
+	int connect_fd;
+	struct sockaddr_in client_ip_addr;
+	int addrlen = sizeof(client_ip_addr);
+
+	// open a server socket for clients to connect to
+	int master_socket = open_server_socket(port);
+	printf("Server listening for connections...");
+
+	// accept incoming connections to this server
+	while (1)
+	{
+		if ((connect_fd = accept(master_socket, (struct sockaddr *)&client_ip_addr, &addrlen)) < 0)
+		{
+			perror("accept failed");
+			exit(EXIT_FAILURE);
+		}
+
+		// TODO: process requests
+	}
+
+	// make sure to close sockets to avoid using up all the FDs
+	closesocket(master_socket);
+}
+
 /**
  * @name open_server_socket
  * @brief Create and bind the TCP server socket, then put it into the listenting state
@@ -80,7 +124,7 @@ int open_server_socket(int port)
 		exit(EXIT_FAILURE);
 	}
 
-	printf("Socket created succeeded!");
+	// success - return the successful file descriptor
 	return socket_fd;
 }
 #pragma endregion Helpers

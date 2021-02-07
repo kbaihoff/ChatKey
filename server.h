@@ -2,8 +2,9 @@
 #define CHATKEY_SERVER
 
 #define QUEUE_LENGTH 5
-#define USAGE ".\\ChatKeyServer.exe <port>"
+#define USAGE "Usage: .\\ChatKeyServer.exe <port>"
 
+void run_server(int port);
 int open_server_socket(int port);
 
 #endif
