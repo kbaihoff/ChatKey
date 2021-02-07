@@ -28,7 +28,7 @@ default: ck
 # To create the executable file ChatKeyServer we need the object files:
 # server.o
 ck: server.o
-	$(CC) $(CFLAGS) -o ChatKeyServer server.o
+	$(CC) $(CFLAGS) -o ChatKeyServer server.o -lws2_32
 
 # To create the object file %.o, we need the source files:
 # %.c (where % is a wildcard)
