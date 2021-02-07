@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <WinSock2.h>
+#include "server.h"
 
 int main(int argc, char** argv) {
 	int master_socket = open_server_socket(8080);
@@ -54,7 +55,7 @@ int open_server_socket(int port) {
 	}
 
 	// Put server in the listening state and set queue length
-	if (listen(socket_fd, 5) < 0) {
+	if (listen(socket_fd, QUEUE_LENGTH) < 0) {
 		perror("listen failed");
 		exit(EXIT_FAILURE);
 	}
