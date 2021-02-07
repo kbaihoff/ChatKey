@@ -15,9 +15,9 @@ struct chatkey_server
 
 void run_server();
 int open_server_socket();
-void add_client(int client_socket);
-void remove_client(int client_socket);
-void broadcast_message(char *msg);
-void handle_communication_to_client(int client_fd);
+void add_client(int);
+void remove_client(int);
+void broadcast_message(char *);
+void handle_communication_to_client();
 
 #endif

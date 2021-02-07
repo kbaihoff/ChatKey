@@ -18,11 +18,12 @@
 #include <Windows.h>
 #include "ChatKey.h"
 #include "server.h"
+#include "communication_thread.h"
 
 /**
  * Global server struct for this file
  */
-struct chatkey_server cks;
+struct chatkey_server CK_SERVER;
 
 /**
  * @name main
@@ -54,14 +55,14 @@ void run_server()
 
 	// open and initialize a server socket for clients to connect to
 	server_socket = open_server_socket(CHATKEY_PORT);
-	cks.num_clients = 0;
-	cks.last_activity = clock();
+	CK_SERVER.num_clients = 0;
+	CK_SERVER.last_activity = clock();
 	printf("Server listening for connections...\n");
 
 	// accept incoming connections to this server
-	while (difftime(clock(), cks.last_activity) < INACTIVE_TIMEOUT)
+	while (difftime(clock(), CK_SERVER.last_activity) < INACTIVE_TIMEOUT)
 	{
-		if (cks.num_clients < MAX_CLIENTS)
+		if (CK_SERVER.num_clients < MAX_CLIENTS)
 		{
 			if ((connect_fd = accept(server_socket, (struct sockaddr *)&client_ip_addr, &addrlen)) < 0)
 			{
@@ -73,14 +74,15 @@ void run_server()
 			add_client(connect_fd);
 
 			// new activity - update the timestamp
-			cks.last_activity = clock();
+			CK_SERVER.last_activity = clock();
 		}
 	}
 
 	// client clean up
-	for (client_idx = 0; client_idx < cks.num_clients; client_idx++) {
-		cleanup_communication_thread(cks.client_threads[client_idx]);
-		closesocket(cks.client_sockets[client_idx]);
+	for (client_idx = 0; client_idx < CK_SERVER.num_clients; client_idx++)
+	{
+		cleanup_communication_thread(CK_SERVER.client_threads[client_idx]);
+		closesocket(CK_SERVER.client_sockets[client_idx]);
 	}
 
 	// server clean up
@@ -142,46 +144,6 @@ int open_server_socket()
 	// success - return the successful file descriptor
 	return socket_fd;
 }
-
-/**
- * @name create_communication_thread
- * @brief Create a thread to listen for and broadcast messages from the clients
- * @param client_socket The socket the client is connected to
- * @returns The thread handle
- */
-HANDLE create_communication_thread(int client_socket)
-{
-	HANDLE thread_handle;
-	memset(&thread_handle, 0, sizeof(thread_handle));
-
-	// Default security attributes
-	// Default stack size
-	// Thread should run run_communication_thread
-	// Pass client_socket as parameter to run_communication_thread
-	// Default creation flags
-	// Don't save the thread identifier
-	thread_handle = CreateThread(NULL, 0, run_communication_thread, &client_socket, 0, NULL);
-	if (thread_handle == NULL)
-	{
-		fprintf(stderr, "CreateThread failed with WSA error %d\n", WSAGetLastError());
-	}
-
-	// success - return the successful thread handle
-	return thread_handle;
-}
-
-/**
- * @name run_communication_thread
- * @brief Wrapper function to handle_communication_to_client; threads should call this function
- * @param lp_client_socket The the LP parameter of the socket this client is connected to
- */
-DWORD WINAPI run_communication_thread(LPVOID lp_client_socket)
-{
-	int client_socket = *(int *)(lp_client_socket);
-	handle_communication_to_client(client_socket);
-	printf("Client %d is disconnecting...\n", client_socket);
-	return EXIT_SUCCESS;
-}
 #pragma endregion Initialization
 
 #pragma region ServerManagement
@@ -192,11 +154,12 @@ DWORD WINAPI run_communication_thread(LPVOID lp_client_socket)
  */
 void add_client(int client_socket)
 {
+	void (*communication_handler)() = &handle_communication_to_client;
 	printf("Server accepted client: %d\n", client_socket);
 	broadcast_message("A new user has joined the group!\n");
-	cks.client_sockets[cks.num_clients] = client_socket;
-	cks.client_threads[cks.num_clients] = create_communication_thread(client_socket);
-	cks.num_clients++;
+	CK_SERVER.client_sockets[CK_SERVER.num_clients] = client_socket;
+	CK_SERVER.client_threads[CK_SERVER.num_clients] = create_communication_thread(communication_handler);
+	CK_SERVER.num_clients++;
 }
 
 /**
@@ -209,23 +172,24 @@ void remove_client(int client_socket)
 	int client_idx, shift_idx;
 
 	// find client index
-	for (client_idx = 0; client_idx < cks.num_clients; client_idx++)
+	for (client_idx = 0; client_idx < CK_SERVER.num_clients; client_idx++)
 	{
-		if (cks.client_sockets[client_idx] == client_socket)
+		if (CK_SERVER.client_sockets[client_idx] == client_socket)
 		{
 			break;
 		}
 	}
 
 	// cleanup thread
-	cleanup_communication_thread(cks.client_threads[client_idx]);
+	cleanup_communication_thread(CK_SERVER.client_threads[client_idx]);
 
 	// shift client sockets and threads
-	for (shift_idx = client_idx + 1; shift_idx < cks.num_clients; shift_idx++) {
-		cks.client_sockets[shift_idx - 1] = cks.client_sockets[shift_idx];
-		cks.client_threads[shift_idx - 1] = cks.client_threads[shift_idx];
+	for (shift_idx = client_idx + 1; shift_idx < CK_SERVER.num_clients; shift_idx++)
+	{
+		CK_SERVER.client_sockets[shift_idx - 1] = CK_SERVER.client_sockets[shift_idx];
+		CK_SERVER.client_threads[shift_idx - 1] = CK_SERVER.client_threads[shift_idx];
 	}
-	cks.num_clients--;
+	CK_SERVER.num_clients--;
 }
 #pragma endregion ServerManagement
 
@@ -233,42 +197,26 @@ void remove_client(int client_socket)
 /**
  * @name broadcast_message
  * @brief Send a message to all connected clients
- * @param cks The ChatKey server that should broadcast the messages
  * @param msg The message to broadcast
  */
 void broadcast_message(char *msg)
 {
 	int i;
-	for (i = 0; i < cks.num_clients; i++)
+	for (i = 0; i < CK_SERVER.num_clients; i++)
 	{
-		send_message(cks.client_sockets[i], msg);
-	}
-}
-
-/**
- * @name send_message
- * @brief Send a message over the server
- * @param client_socket The socket this client is connected to
- * @param buffer The messaget to send
- */
-void send_message(int client_socket, char *buffer)
-{
-	if (send(client_socket, buffer, sizeof(buffer), 0) == SOCKET_ERROR)
-	{
-		fprintf(stderr, "send failed with WSA error %d\n", WSAGetLastError());
-		return;
+		send_message(CK_SERVER.client_sockets[i], msg);
 	}
 }
 
 /**
  * @name handle_communication_to_client
  * @brief Handle messaging with one client
- * @param client_fd The client socket file descriptor
  */
-void handle_communication_to_client(int client_fd)
+void handle_communication_to_client()
 {
 	int bytes_read;
 	char buffer[MAX_BUFFER];
+	int client_fd = CK_SERVER.client_sockets[CK_SERVER.num_clients];
 
 	// Listen for/send messages from/to this client until they decide to leave
 	while (1)
@@ -293,39 +241,4 @@ void handle_communication_to_client(int client_fd)
 		}
 	}
 }
-
-/**
- * @name stop_communication
- * @brief Determine whether client wants to stop communication
- * @param buffer The message from the client
- * @returns 1 if the client wants to leave, otherwise 0
- */
-int stop_communication(char *buffer)
-{
-	if (strncmp(buffer, EXIT_MSG, strlen(EXIT_MSG)) == 0)
-	{
-		return 1;
-	}
-	if (strncmp(buffer, QUIT_MSG, strlen(QUIT_MSG)) == 0)
-	{
-		return 1;
-	}
-	if (strncmp(buffer, DISCONNECT_CLIENT_MSG, strlen(DISCONNECT_CLIENT_MSG)) == 0)
-	{
-		return 1;
-	}
-	return 0;
-}
 #pragma endregion Messaging
-
-#pragma region Cleanup
-/**
- * @name cleanup_communication_thread
- * @brief Clean up thread resources and close handles
- * @param thread_handle The thread to close
- */
-void cleanup_communication_thread(HANDLE thread_handle)
-{
-	CloseHandle(thread_handle);
-}
-#pragma endregion Cleanup
