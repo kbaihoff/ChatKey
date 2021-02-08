@@ -22,7 +22,7 @@
  */
 void send_message(int socket_fd, char *buffer)
 {
-	if (send(socket_fd, buffer, sizeof(buffer), 0) == SOCKET_ERROR)
+	if (send(socket_fd, buffer, strlen(buffer), 0) == SOCKET_ERROR)
 	{
 		fprintf(stderr, "send failed with WSA error %d\n", WSAGetLastError());
 		return;
